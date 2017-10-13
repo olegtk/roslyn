@@ -10,11 +10,12 @@ using Microsoft.CodeAnalysis.Text;
 using Microsoft.CodeAnalysis.Text.Shared.Extensions;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Operations;
+using Microsoft.VisualStudio.Text.UI.Commanding;
 using Microsoft.VisualStudio.Utilities;
 
 namespace Microsoft.CodeAnalysis.Editor.CSharp.BlockCommentEditing
 {
-    [ExportLegacyCommandHandler(nameof(BlockCommentEditingCommandHandler), ContentTypeNames.CSharpContentType)]
+    [ExportCommandHandler(nameof(BlockCommentEditingCommandHandler), ContentTypeNames.CSharpContentType)]
     [Order(After = PredefinedCommandHandlerNames.Completion)]
     internal class BlockCommentEditingCommandHandler : AbstractBlockCommentEditingCommandHandler
     {

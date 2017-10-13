@@ -11,7 +11,7 @@ using Roslyn.Utilities;
 
 namespace Microsoft.CodeAnalysis.Editor.Implementation.BlockCommentEditing
 {
-    internal abstract class AbstractBlockCommentEditingCommandHandler : ILegacyCommandHandler<ReturnKeyCommandArgs>
+    internal abstract class AbstractBlockCommentEditingCommandHandler : ICommandHandler<ReturnKeyCommandArgs>
     {
         private readonly ITextUndoHistoryRegistry _undoHistoryRegistry;
         private readonly IEditorOperationsFactoryService _editorOperationsFactoryService;
@@ -27,17 +27,11 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.BlockCommentEditing
             _editorOperationsFactoryService = editorOperationsFactoryService;
         }
 
-        public CommandState GetCommandState(ReturnKeyCommandArgs args, Func<CommandState> nextHandler) => nextHandler();
+        public bool InterestedInReadOnlyBuffer => false;
 
-        public void ExecuteCommand(ReturnKeyCommandArgs args, Action nextHandler)
-        {
-            if (TryHandleReturnKey(args))
-            {
-                return;
-            }
+        public CommandState GetCommandState(ReturnKeyCommandArgs args) => CommandState.CommandIsUnavailable;
 
-            nextHandler();
-        }
+        public bool ExecuteCommand(ReturnKeyCommandArgs args) => TryHandleReturnKey(args);
 
         private bool TryHandleReturnKey(ReturnKeyCommandArgs args)
         {

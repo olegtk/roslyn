@@ -2,6 +2,7 @@
 
 using System;
 using Microsoft.CodeAnalysis.Editor;
+using Microsoft.VisualStudio.Editor;
 using Microsoft.VisualStudio.OLE.Interop;
 using Microsoft.VisualStudio.Text.Editor;
 using Microsoft.VisualStudio.TextManager.Interop;
@@ -36,8 +37,11 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation.Venus
                 return VSConstants.E_FAIL;
             }
 
+            var editorCommandHandlerAdapterFactory = ComponentModel.GetService<IVsCommandHandlerServiceAdapterFactory> ();
+            var editorCommandHandlerServiceAdapter = editorCommandHandlerAdapterFactory.CreateCommandHandlerServiceAdapter(wpfTextView, nextCmdTarget);
+
             var commandHandlerServiceFactory = ComponentModel.GetService<ICommandHandlerServiceFactory>();
-            textViewFilter = new VenusCommandFilter<TPackage, TLanguageService>(_languageService, wpfTextView, commandHandlerServiceFactory, SubjectBuffer, nextCmdTarget, _editorAdaptersFactoryService);
+            textViewFilter = new VenusCommandFilter<TPackage, TLanguageService>(_languageService, wpfTextView, commandHandlerServiceFactory, SubjectBuffer, editorCommandHandlerServiceAdapter, _editorAdaptersFactoryService);
 
             return VSConstants.S_OK;
         }

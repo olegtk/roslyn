@@ -8,21 +8,20 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.Completion
 {
     internal partial class Controller
     {
-        CommandState ILegacyCommandHandler<AutomaticLineEnderCommandArgs>.GetCommandState(AutomaticLineEnderCommandArgs args, Func<CommandState> nextHandler)
+        CommandState IChainedCommandHandler<AutomaticLineEnderCommandArgs>.GetCommandState(AutomaticLineEnderCommandArgs args, Func<CommandState> nextHandler)
         {
             AssertIsForeground();
             return nextHandler();
         }
 
-        void ILegacyCommandHandler<AutomaticLineEnderCommandArgs>.ExecuteCommand(AutomaticLineEnderCommandArgs args, Action nextHandler)
+        bool IChainedCommandHandler<AutomaticLineEnderCommandArgs>.ExecuteCommand(AutomaticLineEnderCommandArgs args, Func<bool> nextHandler)
         {
             AssertIsForeground();
 
             if (sessionOpt == null)
             {
                 // No computation.  Nothing to do.  Just let the editor handle this.
-                nextHandler();
-                return;
+                return false;
             }
 
             CommitOnEnter(out var sendThrough, out var committed);
@@ -31,8 +30,10 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.Completion
             if (!committed)
             {
                 this.DismissSessionIfActive();
-                nextHandler();
+                return false;
             }
+
+            return true;
         }
     }
 }

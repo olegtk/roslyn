@@ -8,15 +8,15 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.Completion
 {
     internal partial class Controller
     {
-        CommandState ILegacyCommandHandler<DeleteKeyCommandArgs>.GetCommandState(DeleteKeyCommandArgs args, System.Func<CommandState> nextHandler)
+        CommandState IChainedCommandHandler<DeleteKeyCommandArgs>.GetCommandState(DeleteKeyCommandArgs args, System.Func<CommandState> nextHandler)
         {
             AssertIsForeground();
             return nextHandler();
         }
 
-        void ILegacyCommandHandler<DeleteKeyCommandArgs>.ExecuteCommand(DeleteKeyCommandArgs args, Action nextHandler)
+        bool IChainedCommandHandler<DeleteKeyCommandArgs>.ExecuteCommand(DeleteKeyCommandArgs args, Func<bool> nextHandler)
         {
-            ExecuteBackspaceOrDelete(args.TextView, nextHandler, isDelete: true);
+            return ExecuteBackspaceOrDelete(args.TextView, nextHandler, isDelete: true);
         }
     }
 }

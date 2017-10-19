@@ -15,13 +15,13 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.Completion
 {
     internal partial class Controller
     {
-        CommandState ILegacyCommandHandler<TabKeyCommandArgs>.GetCommandState(TabKeyCommandArgs args, System.Func<CommandState> nextHandler)
+        CommandState IChainedCommandHandler<TabKeyCommandArgs>.GetCommandState(TabKeyCommandArgs args, System.Func<CommandState> nextHandler)
         {
             AssertIsForeground();
             return nextHandler();
         }
 
-        void ILegacyCommandHandler<TabKeyCommandArgs>.ExecuteCommand(TabKeyCommandArgs args, Action nextHandler)
+        bool IChainedCommandHandler<TabKeyCommandArgs>.ExecuteCommand(TabKeyCommandArgs args, Func<bool> nextHandler)
         {
             AssertIsForeground();
 
@@ -31,22 +31,26 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.Completion
                 if (TryInvokeSnippetCompletion(args))
                 {
                     // We've taken care of the tab. Don't send it to the buffer.
-                    return;
+                    return true;
                 }
 
                 // No computation.  Nothing to do.  Just let the editor handle this.
-                nextHandler();
-                return;
+                return false;
             }
 
             // We are computing a model.  Try to commit the selected item if there was one. Note: If
             // it was able to commit, then we never send the tab to the buffer. That way, if the
             // user does an undo they'll get to the code they had *before* they hit tab. If the
             // session wasn't able to commit, then we do send the tab through to the buffer.
-            CommitOnTab(nextHandler);
-
-            // After tab, we always want to be in an inactive state.
-            this.DismissSessionIfActive();
+            try
+            {
+                return CommitOnTab(nextHandler);
+            }
+            finally
+            {
+                // After tab, we always want to be in an inactive state.
+                this.DismissSessionIfActive();
+            }
         }
 
         private bool TryInvokeSnippetCompletion(TabKeyCommandArgs args)
@@ -147,7 +151,7 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.Completion
             return current == questionPosition;
         }
 
-        private void CommitOnTab(Action nextHandler)
+        private bool CommitOnTab(Func<bool> nextHandler)
         {
             AssertIsForeground();
 
@@ -157,15 +161,13 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.Completion
             // through to the editor.
             if (model == null)
             {
-                nextHandler();
-                return;
+                return false;
             }
 
             // If there's no selected item, there's nothing to commit
             if (model.SelectedItemOpt == null)
             {
-                nextHandler();
-                return;
+                return false;
             }
 
             // If the selected item is the builder, there's not actually any work to do to commit
@@ -173,6 +175,8 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.Completion
             {
                 CommitOnNonTypeChar(model.SelectedItemOpt, model);
             }
+
+            return true;
         }
     }
 }

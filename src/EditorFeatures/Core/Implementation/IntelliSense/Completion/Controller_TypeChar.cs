@@ -16,7 +16,7 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.Completion
 {
     internal partial class Controller
     {
-        CommandState ILegacyCommandHandler<TypeCharCommandArgs>.GetCommandState(TypeCharCommandArgs args, Func<CommandState> nextHandler)
+        CommandState IChainedCommandHandler<TypeCharCommandArgs>.GetCommandState(TypeCharCommandArgs args, Func<CommandState> nextHandler)
         {
             AssertIsForeground();
 
@@ -24,7 +24,7 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.Completion
             return nextHandler();
         }
 
-        void ILegacyCommandHandler<TypeCharCommandArgs>.ExecuteCommand(TypeCharCommandArgs args, Action nextHandler)
+        bool IChainedCommandHandler<TypeCharCommandArgs>.ExecuteCommand(TypeCharCommandArgs args, Func<bool> nextHandler)
         {
             AssertIsForeground();
 
@@ -103,7 +103,7 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.Completion
                         var model = this.WaitForModel();
                         if (this.CommitIfCommitCharacter(args.TypedChar, model, initialTextSnapshot, nextHandler))
                         {
-                            return;
+                            return true;
                         }
                     }
 
@@ -115,7 +115,7 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.Completion
                         {
                             // I don't think there is any better way than this. if typed char is one of auto brace completion char,
                             // we don't do multiple buffer change check
-                            return;
+                            return true;
                         }
                     }
 
@@ -124,13 +124,13 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.Completion
                     this.DismissSessionIfActive();
                 }
 
-                return;
+                return true;
             }
 
             var completionService = this.GetCompletionService();
             if (completionService == null)
             {
-                return;
+                return true;
             }
 
             var options = GetOptions();
@@ -150,12 +150,12 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.Completion
                     // First create the session that represents that we now have a potential
                     // completion list.  Then tell it to start computing.
                     StartNewModelComputation(completionService, trigger);
-                    return;
+                    return true;
                 }
                 else
                 {
                     // No need to do anything.  Just stay in the state where we have no session.
-                    return;
+                    return true;
                 }
             }
             else
@@ -205,7 +205,7 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.Completion
                         // filter the session.
 
                         sessionOpt.FilterModel(CompletionFilterReason.Insertion, filterState: null);
-                        return;
+                        return true;
                     }
 
                     // It wasn't a filter character.  We'll either commit what's selected, or we'll
@@ -226,10 +226,12 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.Completion
                     {
                         StartNewModelComputation(
                             completionService, trigger);
-                        return;
+                        return true;
                     }
                 }
             }
+
+            return true;
         }
 
         private bool IsOnSeam()
@@ -434,7 +436,7 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.Completion
         }
 
         private bool CommitIfCommitCharacter(
-            char ch, Model model, ITextSnapshot initialTextSnapshot, Action nextHandler)
+            char ch, Model model, ITextSnapshot initialTextSnapshot, Func<bool> nextHandler)
         {
             AssertIsForeground();
 

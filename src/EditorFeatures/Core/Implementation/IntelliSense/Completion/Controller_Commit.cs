@@ -35,7 +35,7 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.Completion
 
         private void Commit(
             CompletionItem item, Model model, char? commitChar,
-            ITextSnapshot initialTextSnapshot, Action nextHandler)
+            ITextSnapshot initialTextSnapshot, Func<bool> nextHandler)
         {
             AssertIsForeground();
 

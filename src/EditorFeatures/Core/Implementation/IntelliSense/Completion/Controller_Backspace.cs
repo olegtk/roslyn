@@ -15,18 +15,18 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.Completion
 {
     internal partial class Controller
     {
-        CommandState ILegacyCommandHandler<BackspaceKeyCommandArgs>.GetCommandState(BackspaceKeyCommandArgs args, System.Func<CommandState> nextHandler)
+        CommandState IChainedCommandHandler<BackspaceKeyCommandArgs>.GetCommandState(BackspaceKeyCommandArgs args, System.Func<CommandState> nextHandler)
         {
             AssertIsForeground();
             return nextHandler();
         }
 
-        void ILegacyCommandHandler<BackspaceKeyCommandArgs>.ExecuteCommand(BackspaceKeyCommandArgs args, Action nextHandler)
+        bool IChainedCommandHandler<BackspaceKeyCommandArgs>.ExecuteCommand(BackspaceKeyCommandArgs args, Func<bool> nextHandler)
         {
-            ExecuteBackspaceOrDelete(args.TextView, nextHandler, isDelete: false);
+            return ExecuteBackspaceOrDelete(args.TextView, nextHandler, isDelete: false);
         }
 
-        private void ExecuteBackspaceOrDelete(ITextView textView, Action nextHandler, bool isDelete)
+        private bool ExecuteBackspaceOrDelete(ITextView textView, Func<bool> nextHandler, bool isDelete)
         {
             AssertIsForeground();
 
@@ -71,7 +71,7 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.Completion
                     this.StartNewModelComputation(completionService, trigger);
                 }
 
-                return;
+                return true;
             }
             else
             {
@@ -98,13 +98,15 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.Completion
                 {
                     // If the caret moved out of bounds of our items, then we want to dismiss the list. 
                     this.DismissSessionIfActive();
-                    return;
+                    return true;
                 }
                 else if (model != null)
                 {
                     sessionOpt.FilterModel(CompletionFilterReason.Deletion, filterState: null);
                 }
             }
+
+            return true;
         }
 
         private bool CaretHasLeftDefaultTrackingSpan(int caretPoint, Document document)

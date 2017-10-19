@@ -8,13 +8,13 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.Completion
 {
     internal partial class Controller
     {
-        CommandState ILegacyCommandHandler<SaveCommandArgs>.GetCommandState(SaveCommandArgs args, System.Func<CommandState> nextHandler)
+        CommandState IChainedCommandHandler<SaveCommandArgs>.GetCommandState(SaveCommandArgs args, System.Func<CommandState> nextHandler)
         {
             AssertIsForeground();
             return nextHandler();
         }
 
-        void ILegacyCommandHandler<SaveCommandArgs>.ExecuteCommand(SaveCommandArgs args, Action nextHandler)
+        bool IChainedCommandHandler<SaveCommandArgs>.ExecuteCommand(SaveCommandArgs args, Func<bool> nextHandler)
         {
             AssertIsForeground();
 
@@ -23,7 +23,7 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.Completion
                 DismissSessionIfActive();
             }
 
-            nextHandler();
+            return false;
         }
     }
 }

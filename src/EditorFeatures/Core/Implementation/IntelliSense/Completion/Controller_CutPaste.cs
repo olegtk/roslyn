@@ -10,30 +10,30 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.Completion
     {
         // Cut and Paste should always dismiss completion
 
-        CommandState ILegacyCommandHandler<CutCommandArgs>.GetCommandState(CutCommandArgs args, System.Func<CommandState> nextHandler)
+        CommandState IChainedCommandHandler<CutCommandArgs>.GetCommandState(CutCommandArgs args, System.Func<CommandState> nextHandler)
         {
             AssertIsForeground();
             return nextHandler();
         }
 
-        void ILegacyCommandHandler<CutCommandArgs>.ExecuteCommand(CutCommandArgs args, Action nextHandler)
+        bool IChainedCommandHandler<CutCommandArgs>.ExecuteCommand(CutCommandArgs args, Func<bool> nextHandler)
         {
             AssertIsForeground();
             DismissSessionIfActive();
-            nextHandler();
+            return false;
         }
 
-        CommandState ILegacyCommandHandler<PasteCommandArgs>.GetCommandState(PasteCommandArgs args, System.Func<CommandState> nextHandler)
+        CommandState IChainedCommandHandler<PasteCommandArgs>.GetCommandState(PasteCommandArgs args, System.Func<CommandState> nextHandler)
         {
             AssertIsForeground();
             return nextHandler();
         }
 
-        void ILegacyCommandHandler<PasteCommandArgs>.ExecuteCommand(PasteCommandArgs args, Action nextHandler)
+        bool IChainedCommandHandler<PasteCommandArgs>.ExecuteCommand(PasteCommandArgs args, Func<bool> nextHandler)
         {
             AssertIsForeground();
             DismissSessionIfActive();
-            nextHandler();
+            return false;
         }
     }
 }

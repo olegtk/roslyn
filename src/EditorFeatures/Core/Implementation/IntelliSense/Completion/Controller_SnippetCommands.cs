@@ -8,42 +8,43 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.Completion
 {
     internal partial class Controller
     {
-        CommandState ILegacyCommandHandler<InsertSnippetCommandArgs>.GetCommandState(InsertSnippetCommandArgs args, Func<CommandState> nextHandler)
+        CommandState IChainedCommandHandler<InsertSnippetCommandArgs>.GetCommandState(InsertSnippetCommandArgs args, Func<CommandState> nextHandler)
         {
             AssertIsForeground();
             return nextHandler();
         }
 
-        void ILegacyCommandHandler<InsertSnippetCommandArgs>.ExecuteCommand(InsertSnippetCommandArgs args, Action nextHandler)
+        bool IChainedCommandHandler<InsertSnippetCommandArgs>.ExecuteCommand(InsertSnippetCommandArgs args, Func<bool> nextHandler)
         {
             // If the completion list is showing when the snippet picker is invoked, then the 
             // editor fails to draw the text input area of the picker until a tab or enter is 
             // pressed to select a snippet folder. 
 
             AssertIsForeground();
-            DismissCompletionForSnippetPicker(nextHandler);
+            DismissCompletionForSnippetPicker();
+            return false;
         }
 
-        CommandState ILegacyCommandHandler<SurroundWithCommandArgs>.GetCommandState(SurroundWithCommandArgs args, Func<CommandState> nextHandler)
+        CommandState IChainedCommandHandler<SurroundWithCommandArgs>.GetCommandState(SurroundWithCommandArgs args, Func<CommandState> nextHandler)
         {
             AssertIsForeground();
             return nextHandler();
         }
 
-        void ILegacyCommandHandler<SurroundWithCommandArgs>.ExecuteCommand(SurroundWithCommandArgs args, Action nextHandler)
+        bool IChainedCommandHandler<SurroundWithCommandArgs>.ExecuteCommand(SurroundWithCommandArgs args, Func<bool> nextHandler)
         {
             // If the completion list is showing when the snippet picker is invoked, then the 
             // editor fails to draw the text input area of the picker until a tab or enter is 
             // pressed to select a snippet folder. 
 
             AssertIsForeground();
-            DismissCompletionForSnippetPicker(nextHandler);
+            DismissCompletionForSnippetPicker();
+            return false;
         }
 
-        private void DismissCompletionForSnippetPicker(Action nextHandler)
+        private void DismissCompletionForSnippetPicker()
         {
             DismissSessionIfActive();
-            nextHandler();
         }
     }
 }

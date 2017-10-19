@@ -9,21 +9,20 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.Completion
 {
     internal partial class Controller
     {
-        CommandState ILegacyCommandHandler<ReturnKeyCommandArgs>.GetCommandState(ReturnKeyCommandArgs args, Func<CommandState> nextHandler)
+        CommandState IChainedCommandHandler<ReturnKeyCommandArgs>.GetCommandState(ReturnKeyCommandArgs args, Func<CommandState> nextHandler)
         {
             AssertIsForeground();
             return nextHandler();
         }
 
-        void ILegacyCommandHandler<ReturnKeyCommandArgs>.ExecuteCommand(ReturnKeyCommandArgs args, Action nextHandler)
+        bool IChainedCommandHandler<ReturnKeyCommandArgs>.ExecuteCommand(ReturnKeyCommandArgs args, Func<bool> nextHandler)
         {
             AssertIsForeground();
 
             if (sessionOpt == null)
             {
                 // No computation.  Nothing to do.  Just let the editor handle this.
-                nextHandler();
-                return;
+                return false;
             }
 
             CommitOnEnter(out var sendThrough, out var committed);
@@ -36,10 +35,7 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.Completion
             // always commits the item and then sends the enter through so that later features can
             // handle it (i.e. indentation).  In C# enter only commits, although there is an option
             // to send the newline along if the item was completely typed.
-            if (sendThrough)
-            {
-                nextHandler();
-            }
+            return !sendThrough;
         }
 
         private void CommitOnEnter(out bool sendThrough, out bool committed)

@@ -8,17 +8,17 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.Completion
 {
     internal partial class Controller
     {
-        CommandState ILegacyCommandHandler<SelectAllCommandArgs>.GetCommandState(SelectAllCommandArgs args, Func<CommandState> nextHandler)
+        CommandState IChainedCommandHandler<SelectAllCommandArgs>.GetCommandState(SelectAllCommandArgs args, Func<CommandState> nextHandler)
         {
             AssertIsForeground();
             return nextHandler();
         }
 
-        void ILegacyCommandHandler<SelectAllCommandArgs>.ExecuteCommand(SelectAllCommandArgs args, Action nextHandler)
+        bool IChainedCommandHandler<SelectAllCommandArgs>.ExecuteCommand(SelectAllCommandArgs args, Func<bool> nextHandler)
         {
             AssertIsForeground();
             DismissSessionIfActive();
-            nextHandler();
+            return false;
         }
     }
 }

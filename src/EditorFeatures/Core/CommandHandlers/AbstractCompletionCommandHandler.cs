@@ -10,25 +10,27 @@ namespace Microsoft.CodeAnalysis.Editor.CommandHandlers
 {
     internal abstract class AbstractCompletionCommandHandler :
         ForegroundThreadAffinitizedObject,
-        ILegacyCommandHandler<TabKeyCommandArgs>,
-        ILegacyCommandHandler<ToggleCompletionModeCommandArgs>,
-        ILegacyCommandHandler<TypeCharCommandArgs>,
-        ILegacyCommandHandler<ReturnKeyCommandArgs>,
-        ILegacyCommandHandler<InvokeCompletionListCommandArgs>,
-        ILegacyCommandHandler<CommitUniqueCompletionListItemCommandArgs>,
-        ILegacyCommandHandler<PageUpKeyCommandArgs>,
-        ILegacyCommandHandler<PageDownKeyCommandArgs>,
-        ILegacyCommandHandler<CutCommandArgs>,
-        ILegacyCommandHandler<PasteCommandArgs>,
-        ILegacyCommandHandler<BackspaceKeyCommandArgs>,
-        ILegacyCommandHandler<InsertSnippetCommandArgs>,
-        ILegacyCommandHandler<SurroundWithCommandArgs>,
-        ILegacyCommandHandler<AutomaticLineEnderCommandArgs>,
-        ILegacyCommandHandler<SaveCommandArgs>,
-        ILegacyCommandHandler<DeleteKeyCommandArgs>,
-        ILegacyCommandHandler<SelectAllCommandArgs>
+        IChainedCommandHandler<TabKeyCommandArgs>,
+        IChainedCommandHandler<ToggleCompletionModeCommandArgs>,
+        IChainedCommandHandler<TypeCharCommandArgs>,
+        IChainedCommandHandler<ReturnKeyCommandArgs>,
+        IChainedCommandHandler<InvokeCompletionListCommandArgs>,
+        IChainedCommandHandler<CommitUniqueCompletionListItemCommandArgs>,
+        IChainedCommandHandler<PageUpKeyCommandArgs>,
+        IChainedCommandHandler<PageDownKeyCommandArgs>,
+        IChainedCommandHandler<CutCommandArgs>,
+        IChainedCommandHandler<PasteCommandArgs>,
+        IChainedCommandHandler<BackspaceKeyCommandArgs>,
+        IChainedCommandHandler<InsertSnippetCommandArgs>,
+        IChainedCommandHandler<SurroundWithCommandArgs>,
+        IChainedCommandHandler<AutomaticLineEnderCommandArgs>,
+        IChainedCommandHandler<SaveCommandArgs>,
+        IChainedCommandHandler<DeleteKeyCommandArgs>,
+        IChainedCommandHandler<SelectAllCommandArgs>
     {
         private readonly IAsyncCompletionService _completionService;
+
+        public bool InterestedInReadOnlyBuffer => true;
 
         protected AbstractCompletionCommandHandler(IAsyncCompletionService completionService)
         {
@@ -40,7 +42,7 @@ namespace Microsoft.CodeAnalysis.Editor.CommandHandlers
             return _completionService.TryGetController(args.TextView, args.SubjectBuffer, out controller);
         }
 
-        private bool TryGetControllerCommandHandler<TCommandArgs>(TCommandArgs args, out ILegacyCommandHandler<TCommandArgs> commandHandler)
+        private bool TryGetControllerCommandHandler<TCommandArgs>(TCommandArgs args, out ICommandHandler commandHandler)
             where TCommandArgs : CommandArgs
         {
             AssertIsForeground();
@@ -50,7 +52,7 @@ namespace Microsoft.CodeAnalysis.Editor.CommandHandlers
                 return false;
             }
 
-            commandHandler = (ILegacyCommandHandler<TCommandArgs>)controller;
+            commandHandler = (IChainedCommandHandler<TCommandArgs>)controller;
             return true;
         }
 
@@ -60,172 +62,187 @@ namespace Microsoft.CodeAnalysis.Editor.CommandHandlers
             where TCommandArgs : CommandArgs
         {
             AssertIsForeground();
-            return TryGetControllerCommandHandler(args, out var commandHandler)
-                ? commandHandler.GetCommandState(args, nextHandler)
-                : nextHandler();
+            if (TryGetControllerCommandHandler(args, out var commandHandler))
+            {
+                if (commandHandler is ICommandHandler<TCommandArgs> next)
+                {
+                    return next.GetCommandState(args);
+                }
+                if (commandHandler is IChainedCommandHandler<TCommandArgs> routingNext)
+                {
+                    return routingNext.GetCommandState(args, nextHandler);
+                }
+            }
+
+            return nextHandler();
         }
 
-        private void ExecuteCommandWorker<TCommandArgs>(
+        private bool ExecuteCommandWorker<TCommandArgs>(
             TCommandArgs args,
-            Action nextHandler)
+            Func<bool> nextHandler)
             where TCommandArgs : CommandArgs
         {
             AssertIsForeground();
             if (TryGetControllerCommandHandler(args, out var commandHandler))
             {
-                commandHandler.ExecuteCommand(args, nextHandler);
+                if (commandHandler is ICommandHandler<TCommandArgs> next)
+                {
+                    return next.ExecuteCommand(args);
+                }
+                if (commandHandler is IChainedCommandHandler<TCommandArgs> routingNext)
+                {
+                    return routingNext.ExecuteCommand(args, nextHandler);
+                }
             }
-            else
-            {
-                nextHandler();
-            }
+
+            return nextHandler();
         }
 
-        CommandState ILegacyCommandHandler<TabKeyCommandArgs>.GetCommandState(TabKeyCommandArgs args, Func<CommandState> nextHandler)
+        CommandState IChainedCommandHandler<TabKeyCommandArgs>.GetCommandState(TabKeyCommandArgs args, Func<CommandState> nextHandler)
         {
             AssertIsForeground();
             return GetCommandStateWorker(args, nextHandler);
         }
 
-        void ILegacyCommandHandler<TabKeyCommandArgs>.ExecuteCommand(TabKeyCommandArgs args, Action nextHandler)
+        bool IChainedCommandHandler<TabKeyCommandArgs>.ExecuteCommand(TabKeyCommandArgs args, Func<bool> nextHandler)
         {
             AssertIsForeground();
-            ExecuteCommandWorker(args, nextHandler);
+            return ExecuteCommandWorker(args, nextHandler);
         }
 
-        CommandState ILegacyCommandHandler<ToggleCompletionModeCommandArgs>.GetCommandState(ToggleCompletionModeCommandArgs args, System.Func<CommandState> nextHandler)
-        {
-            AssertIsForeground();
-            return GetCommandStateWorker(args, nextHandler);
-        }
-
-        void ILegacyCommandHandler<ToggleCompletionModeCommandArgs>.ExecuteCommand(ToggleCompletionModeCommandArgs args, System.Action nextHandler)
-        {
-            AssertIsForeground();
-            ExecuteCommandWorker(args, nextHandler);
-        }
-
-        CommandState ILegacyCommandHandler<TypeCharCommandArgs>.GetCommandState(TypeCharCommandArgs args, System.Func<CommandState> nextHandler)
+        CommandState IChainedCommandHandler<ToggleCompletionModeCommandArgs>.GetCommandState(ToggleCompletionModeCommandArgs args, System.Func<CommandState> nextHandler)
         {
             AssertIsForeground();
             return GetCommandStateWorker(args, nextHandler);
         }
 
-        void ILegacyCommandHandler<TypeCharCommandArgs>.ExecuteCommand(TypeCharCommandArgs args, System.Action nextHandler)
+        bool IChainedCommandHandler<ToggleCompletionModeCommandArgs>.ExecuteCommand(ToggleCompletionModeCommandArgs args, System.Func<bool> nextHandler)
         {
             AssertIsForeground();
-            ExecuteCommandWorker(args, nextHandler);
+            return ExecuteCommandWorker(args, nextHandler);
         }
 
-        CommandState ILegacyCommandHandler<ReturnKeyCommandArgs>.GetCommandState(ReturnKeyCommandArgs args, System.Func<CommandState> nextHandler)
-        {
-            AssertIsForeground();
-            return GetCommandStateWorker(args, nextHandler);
-        }
-
-        void ILegacyCommandHandler<ReturnKeyCommandArgs>.ExecuteCommand(ReturnKeyCommandArgs args, System.Action nextHandler)
-        {
-            AssertIsForeground();
-            ExecuteCommandWorker(args, nextHandler);
-        }
-
-        CommandState ILegacyCommandHandler<InvokeCompletionListCommandArgs>.GetCommandState(InvokeCompletionListCommandArgs args, System.Func<CommandState> nextHandler)
+        CommandState IChainedCommandHandler<TypeCharCommandArgs>.GetCommandState(TypeCharCommandArgs args, System.Func<CommandState> nextHandler)
         {
             AssertIsForeground();
             return GetCommandStateWorker(args, nextHandler);
         }
 
-        void ILegacyCommandHandler<InvokeCompletionListCommandArgs>.ExecuteCommand(InvokeCompletionListCommandArgs args, System.Action nextHandler)
+        bool IChainedCommandHandler<TypeCharCommandArgs>.ExecuteCommand(TypeCharCommandArgs args, System.Func<bool> nextHandler)
         {
             AssertIsForeground();
-            ExecuteCommandWorker(args, nextHandler);
+            return ExecuteCommandWorker(args, nextHandler);
         }
 
-        CommandState ILegacyCommandHandler<PageUpKeyCommandArgs>.GetCommandState(PageUpKeyCommandArgs args, Func<CommandState> nextHandler)
-        {
-            AssertIsForeground();
-            return GetCommandStateWorker(args, nextHandler);
-        }
-
-        void ILegacyCommandHandler<PageUpKeyCommandArgs>.ExecuteCommand(PageUpKeyCommandArgs args, Action nextHandler)
-        {
-            AssertIsForeground();
-            ExecuteCommandWorker(args, nextHandler);
-        }
-
-        CommandState ILegacyCommandHandler<PageDownKeyCommandArgs>.GetCommandState(PageDownKeyCommandArgs args, Func<CommandState> nextHandler)
+        CommandState IChainedCommandHandler<ReturnKeyCommandArgs>.GetCommandState(ReturnKeyCommandArgs args, System.Func<CommandState> nextHandler)
         {
             AssertIsForeground();
             return GetCommandStateWorker(args, nextHandler);
         }
 
-        void ILegacyCommandHandler<PageDownKeyCommandArgs>.ExecuteCommand(PageDownKeyCommandArgs args, Action nextHandler)
+        bool IChainedCommandHandler<ReturnKeyCommandArgs>.ExecuteCommand(ReturnKeyCommandArgs args, System.Func<bool> nextHandler)
         {
             AssertIsForeground();
-            ExecuteCommandWorker(args, nextHandler);
+            return ExecuteCommandWorker(args, nextHandler);
         }
 
-        CommandState ILegacyCommandHandler<CutCommandArgs>.GetCommandState(CutCommandArgs args, Func<CommandState> nextHandler)
-        {
-            AssertIsForeground();
-            return GetCommandStateWorker(args, nextHandler);
-        }
-
-        void ILegacyCommandHandler<CutCommandArgs>.ExecuteCommand(CutCommandArgs args, Action nextHandler)
-        {
-            AssertIsForeground();
-            ExecuteCommandWorker(args, nextHandler);
-        }
-
-        CommandState ILegacyCommandHandler<PasteCommandArgs>.GetCommandState(PasteCommandArgs args, Func<CommandState> nextHandler)
+        CommandState IChainedCommandHandler<InvokeCompletionListCommandArgs>.GetCommandState(InvokeCompletionListCommandArgs args, System.Func<CommandState> nextHandler)
         {
             AssertIsForeground();
             return GetCommandStateWorker(args, nextHandler);
         }
 
-        void ILegacyCommandHandler<PasteCommandArgs>.ExecuteCommand(PasteCommandArgs args, Action nextHandler)
+        bool IChainedCommandHandler<InvokeCompletionListCommandArgs>.ExecuteCommand(InvokeCompletionListCommandArgs args, System.Func<bool> nextHandler)
         {
             AssertIsForeground();
-            ExecuteCommandWorker(args, nextHandler);
+            return ExecuteCommandWorker(args, nextHandler);
         }
 
-        CommandState ILegacyCommandHandler<CommitUniqueCompletionListItemCommandArgs>.GetCommandState(CommitUniqueCompletionListItemCommandArgs args, Func<CommandState> nextHandler)
-        {
-            AssertIsForeground();
-            return GetCommandStateWorker(args, nextHandler);
-        }
-
-        void ILegacyCommandHandler<CommitUniqueCompletionListItemCommandArgs>.ExecuteCommand(CommitUniqueCompletionListItemCommandArgs args, Action nextHandler)
-        {
-            AssertIsForeground();
-            ExecuteCommandWorker(args, nextHandler);
-        }
-
-        CommandState ILegacyCommandHandler<BackspaceKeyCommandArgs>.GetCommandState(BackspaceKeyCommandArgs args, Func<CommandState> nextHandler)
+        CommandState IChainedCommandHandler<PageUpKeyCommandArgs>.GetCommandState(PageUpKeyCommandArgs args, Func<CommandState> nextHandler)
         {
             AssertIsForeground();
             return GetCommandStateWorker(args, nextHandler);
         }
 
-        void ILegacyCommandHandler<BackspaceKeyCommandArgs>.ExecuteCommand(BackspaceKeyCommandArgs args, Action nextHandler)
+        bool IChainedCommandHandler<PageUpKeyCommandArgs>.ExecuteCommand(PageUpKeyCommandArgs args, Func<bool> nextHandler)
         {
             AssertIsForeground();
-            ExecuteCommandWorker(args, nextHandler);
+            return ExecuteCommandWorker(args, nextHandler);
         }
 
-        CommandState ILegacyCommandHandler<InsertSnippetCommandArgs>.GetCommandState(InsertSnippetCommandArgs args, Func<CommandState> nextHandler)
+        CommandState IChainedCommandHandler<PageDownKeyCommandArgs>.GetCommandState(PageDownKeyCommandArgs args, Func<CommandState> nextHandler)
         {
             AssertIsForeground();
             return GetCommandStateWorker(args, nextHandler);
         }
 
-        void ILegacyCommandHandler<InsertSnippetCommandArgs>.ExecuteCommand(InsertSnippetCommandArgs args, Action nextHandler)
+        bool IChainedCommandHandler<PageDownKeyCommandArgs>.ExecuteCommand(PageDownKeyCommandArgs args, Func<bool> nextHandler)
         {
             AssertIsForeground();
-            ExecuteCommandWorker(args, nextHandler);
+            return ExecuteCommandWorker(args, nextHandler);
         }
 
-        CommandState ILegacyCommandHandler<SurroundWithCommandArgs>.GetCommandState(SurroundWithCommandArgs args, Func<CommandState> nextHandler)
+        CommandState IChainedCommandHandler<CutCommandArgs>.GetCommandState(CutCommandArgs args, Func<CommandState> nextHandler)
+        {
+            AssertIsForeground();
+            return GetCommandStateWorker(args, nextHandler);
+        }
+
+        bool IChainedCommandHandler<CutCommandArgs>.ExecuteCommand(CutCommandArgs args, Func<bool> nextHandler)
+        {
+            AssertIsForeground();
+            return ExecuteCommandWorker(args, nextHandler);
+        }
+
+        CommandState IChainedCommandHandler<PasteCommandArgs>.GetCommandState(PasteCommandArgs args, Func<CommandState> nextHandler)
+        {
+            AssertIsForeground();
+            return GetCommandStateWorker(args, nextHandler);
+        }
+
+        bool IChainedCommandHandler<PasteCommandArgs>.ExecuteCommand(PasteCommandArgs args, Func<bool> nextHandler)
+        {
+            AssertIsForeground();
+            return ExecuteCommandWorker(args, nextHandler);
+        }
+
+        CommandState IChainedCommandHandler<CommitUniqueCompletionListItemCommandArgs>.GetCommandState(CommitUniqueCompletionListItemCommandArgs args, Func<CommandState> nextHandler)
+        {
+            AssertIsForeground();
+            return GetCommandStateWorker(args, nextHandler);
+        }
+
+        bool IChainedCommandHandler<CommitUniqueCompletionListItemCommandArgs>.ExecuteCommand(CommitUniqueCompletionListItemCommandArgs args, Func<bool> nextHandler)
+        {
+            AssertIsForeground();
+            return ExecuteCommandWorker(args, nextHandler);
+        }
+
+        CommandState IChainedCommandHandler<BackspaceKeyCommandArgs>.GetCommandState(BackspaceKeyCommandArgs args, Func<CommandState> nextHandler)
+        {
+            AssertIsForeground();
+            return GetCommandStateWorker(args, nextHandler);
+        }
+
+        bool IChainedCommandHandler<BackspaceKeyCommandArgs>.ExecuteCommand(BackspaceKeyCommandArgs args, Func<bool> nextHandler)
+        {
+            AssertIsForeground();
+            return ExecuteCommandWorker(args, nextHandler);
+        }
+
+        CommandState IChainedCommandHandler<InsertSnippetCommandArgs>.GetCommandState(InsertSnippetCommandArgs args, Func<CommandState> nextHandler)
+        {
+            AssertIsForeground();
+            return GetCommandStateWorker(args, nextHandler);
+        }
+
+        bool IChainedCommandHandler<InsertSnippetCommandArgs>.ExecuteCommand(InsertSnippetCommandArgs args, Func<bool> nextHandler)
+        {
+            AssertIsForeground();
+            return ExecuteCommandWorker(args, nextHandler);
+        }
+
+        CommandState IChainedCommandHandler<SurroundWithCommandArgs>.GetCommandState(SurroundWithCommandArgs args, Func<CommandState> nextHandler)
         {
             AssertIsForeground();
             return GetCommandStateWorker(args, nextHandler);
@@ -237,16 +254,16 @@ namespace Microsoft.CodeAnalysis.Editor.CommandHandlers
             return GetCommandStateWorker(args, nextHandler);
         }
 
-        public void ExecuteCommand(AutomaticLineEnderCommandArgs args, Action nextHandler)
+        public bool ExecuteCommand(AutomaticLineEnderCommandArgs args, Func<bool> nextHandler)
         {
             AssertIsForeground();
-            ExecuteCommandWorker(args, nextHandler);
+            return ExecuteCommandWorker(args, nextHandler);
         }
 
-        void ILegacyCommandHandler<SurroundWithCommandArgs>.ExecuteCommand(SurroundWithCommandArgs args, Action nextHandler)
+        bool IChainedCommandHandler<SurroundWithCommandArgs>.ExecuteCommand(SurroundWithCommandArgs args, Func<bool> nextHandler)
         {
             AssertIsForeground();
-            ExecuteCommandWorker(args, nextHandler);
+            return ExecuteCommandWorker(args, nextHandler);
         }
 
         internal bool TryHandleEscapeKey(EscapeKeyCommandArgs commandArgs)
@@ -285,10 +302,10 @@ namespace Microsoft.CodeAnalysis.Editor.CommandHandlers
             return GetCommandStateWorker(args, nextHandler);
         }
 
-        public void ExecuteCommand(SaveCommandArgs args, Action nextHandler)
+        public bool ExecuteCommand(SaveCommandArgs args, Func<bool> nextHandler)
         {
             AssertIsForeground();
-            ExecuteCommandWorker(args, nextHandler);
+            return ExecuteCommandWorker(args, nextHandler);
         }
 
         public CommandState GetCommandState(DeleteKeyCommandArgs args, Func<CommandState> nextHandler)
@@ -297,10 +314,10 @@ namespace Microsoft.CodeAnalysis.Editor.CommandHandlers
             return GetCommandStateWorker(args, nextHandler);
         }
 
-        public void ExecuteCommand(DeleteKeyCommandArgs args, Action nextHandler)
+        public bool ExecuteCommand(DeleteKeyCommandArgs args, Func<bool> nextHandler)
         {
             AssertIsForeground();
-            ExecuteCommandWorker(args, nextHandler);
+            return ExecuteCommandWorker(args, nextHandler);
         }
 
         public CommandState GetCommandState(SelectAllCommandArgs args, Func<CommandState> nextHandler)
@@ -309,10 +326,10 @@ namespace Microsoft.CodeAnalysis.Editor.CommandHandlers
             return GetCommandStateWorker(args, nextHandler);
         }
 
-        public void ExecuteCommand(SelectAllCommandArgs args, Action nextHandler)
+        public bool ExecuteCommand(SelectAllCommandArgs args, Func<bool> nextHandler)
         {
             AssertIsForeground();
-            ExecuteCommandWorker(args, nextHandler);
+            return ExecuteCommandWorker(args, nextHandler);
         }
     }
 }

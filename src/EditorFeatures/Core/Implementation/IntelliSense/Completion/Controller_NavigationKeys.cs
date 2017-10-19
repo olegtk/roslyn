@@ -8,13 +8,13 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.Completion
 {
     internal partial class Controller
     {
-        CommandState ILegacyCommandHandler<PageUpKeyCommandArgs>.GetCommandState(PageUpKeyCommandArgs args, Func<CommandState> nextHandler)
+        CommandState IChainedCommandHandler<PageUpKeyCommandArgs>.GetCommandState(PageUpKeyCommandArgs args, Func<CommandState> nextHandler)
         {
             AssertIsForeground();
             return nextHandler();
         }
 
-        CommandState ILegacyCommandHandler<PageDownKeyCommandArgs>.GetCommandState(PageDownKeyCommandArgs args, Func<CommandState> nextHandler)
+        CommandState IChainedCommandHandler<PageDownKeyCommandArgs>.GetCommandState(PageDownKeyCommandArgs args, Func<CommandState> nextHandler)
         {
             AssertIsForeground();
             return nextHandler();
@@ -32,22 +32,26 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.Completion
             return ChangeSelection(() => sessionOpt.PresenterSession.SelectNextItem());
         }
 
-        void ILegacyCommandHandler<PageUpKeyCommandArgs>.ExecuteCommand(PageUpKeyCommandArgs args, Action nextHandler)
+        bool IChainedCommandHandler<PageUpKeyCommandArgs>.ExecuteCommand(PageUpKeyCommandArgs args, Func<bool> nextHandler)
         {
             AssertIsForeground();
             if (!ChangeSelection(() => sessionOpt.PresenterSession.SelectPreviousPageItem()))
             {
-                nextHandler();
+                return false;
             }
+
+            return true;
         }
 
-        void ILegacyCommandHandler<PageDownKeyCommandArgs>.ExecuteCommand(PageDownKeyCommandArgs args, Action nextHandler)
+        bool IChainedCommandHandler<PageDownKeyCommandArgs>.ExecuteCommand(PageDownKeyCommandArgs args, Func<bool> nextHandler)
         {
             AssertIsForeground();
             if (!ChangeSelection(() => sessionOpt.PresenterSession.SelectNextPageItem()))
             {
-                nextHandler();
+                return false;
             }
+
+            return true;
         }
 
         private bool ChangeSelection(Action computationAction)

@@ -42,7 +42,7 @@ namespace Microsoft.CodeAnalysis.Editor.CommandHandlers
             return _completionService.TryGetController(args.TextView, args.SubjectBuffer, out controller);
         }
 
-        private bool TryGetControllerCommandHandler<TCommandArgs>(TCommandArgs args, out ICommandHandler commandHandler)
+        private bool TryGetControllerCommandHandler<TCommandArgs>(TCommandArgs args, out IChainedCommandHandler<TCommandArgs> commandHandler)
             where TCommandArgs : CommandArgs
         {
             AssertIsForeground();
@@ -64,14 +64,7 @@ namespace Microsoft.CodeAnalysis.Editor.CommandHandlers
             AssertIsForeground();
             if (TryGetControllerCommandHandler(args, out var commandHandler))
             {
-                if (commandHandler is ICommandHandler<TCommandArgs> next)
-                {
-                    return next.GetCommandState(args);
-                }
-                if (commandHandler is IChainedCommandHandler<TCommandArgs> routingNext)
-                {
-                    return routingNext.GetCommandState(args, nextHandler);
-                }
+                return commandHandler.GetCommandState(args, nextHandler);
             }
 
             return nextHandler();
@@ -85,14 +78,7 @@ namespace Microsoft.CodeAnalysis.Editor.CommandHandlers
             AssertIsForeground();
             if (TryGetControllerCommandHandler(args, out var commandHandler))
             {
-                if (commandHandler is ICommandHandler<TCommandArgs> next)
-                {
-                    return next.ExecuteCommand(args);
-                }
-                if (commandHandler is IChainedCommandHandler<TCommandArgs> routingNext)
-                {
-                    return routingNext.ExecuteCommand(args, nextHandler);
-                }
+                return commandHandler.ExecuteCommand(args, nextHandler);
             }
 
             return nextHandler();

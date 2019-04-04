@@ -15,6 +15,7 @@ using Microsoft.CodeAnalysis.Host.Mef;
 using Microsoft.CodeAnalysis.Remote;
 using Microsoft.ServiceHub.Client;
 using Microsoft.VisualStudio.Core.Imaging;
+using Microsoft.VisualStudio.Language.CodeLens;
 using Microsoft.VisualStudio.Language.CodeLens.Remoting;
 using Microsoft.VisualStudio.Language.Intellisense;
 using Microsoft.VisualStudio.LanguageServices.CodeLens;
@@ -59,9 +60,9 @@ namespace Microsoft.VisualStudio.CodeAnalysis.CodeLens
             _lazyCodeLensCallbackService = codeLensCallbackService;
         }
 
-        public Task<bool> CanCreateDataPointAsync(CodeLensDescriptor descriptor, CancellationToken token)
+        public Task<bool> CanCreateDataPointAsync(CodeLensDescriptor descriptor, CodeLensDescriptorContext descriptorContext, CancellationToken token)
         {
-            if (!descriptor.ApplicableToSpan.HasValue)
+            if (!descriptorContext.ApplicableSpan.HasValue)
             {
                 return SpecializedTasks.False;
             }
@@ -71,7 +72,7 @@ namespace Microsoft.VisualStudio.CodeAnalysis.CodeLens
             return SpecializedTasks.True;
         }
 
-        public async Task<IAsyncCodeLensDataPoint> CreateDataPointAsync(CodeLensDescriptor descriptor, CancellationToken cancellationToken)
+        public async Task<IAsyncCodeLensDataPoint> CreateDataPointAsync(CodeLensDescriptor descriptor, CodeLensDescriptorContext descriptorContext, CancellationToken cancellationToken)
         {
             var dataPoint = new DataPoint(this, descriptor, await GetConnectionAsync(cancellationToken).ConfigureAwait(false), _lazyCodeLensCallbackService.Value);
             await dataPoint.TrackChangesAsync(cancellationToken).ConfigureAwait(false);
@@ -101,7 +102,6 @@ namespace Microsoft.VisualStudio.CodeAnalysis.CodeLens
             {
                 _owner = owner;
                 this.Descriptor = descriptor;
-
                 _roslynRpc = new JsonRpc(new JsonRpcMessageHandler(stream, stream), target: new RoslynCallbackTarget(Invalidate));
                 _roslynRpc.JsonSerializer.Converters.Add(AggregateJsonConverter.Instance);
 
@@ -114,12 +114,12 @@ namespace Microsoft.VisualStudio.CodeAnalysis.CodeLens
 
             public CodeLensDescriptor Descriptor { get; }
 
-            public async Task<CodeLensDataPointDescriptor> GetDataAsync(CancellationToken cancellationToken)
+            public async Task<CodeLensDataPointDescriptor> GetDataAsync(CodeLensDescriptorContext descriptorContext, CancellationToken cancellationToken)
             {
                 // we always get data through VS rather than Roslyn OOP directly since we want final data rather than
                 // raw data from Roslyn OOP such as razor find all reference results
                 var referenceCount = await _callbackService.InvokeAsync<ReferenceCount>(
-                    _owner, nameof(ICodeLensContext.GetReferenceCountAsync), new object[] { this.Descriptor }, cancellationToken).ConfigureAwait(false);
+                    _owner, nameof(ICodeLensContext.GetReferenceCountAsync), new object[] { this.Descriptor, descriptorContext }, cancellationToken).ConfigureAwait(false);
 
                 if (referenceCount == null)
                 {
@@ -156,12 +156,12 @@ namespace Microsoft.VisualStudio.CodeAnalysis.CodeLens
                 }
             }
 
-            public async Task<CodeLensDetailsDescriptor> GetDetailsAsync(CancellationToken cancellationToken)
+            public async Task<CodeLensDetailsDescriptor> GetDetailsAsync(CodeLensDescriptorContext descriptorContext, CancellationToken cancellationToken)
             {
                 // we always get data through VS rather than Roslyn OOP directly since we want final data rather than
                 // raw data from Roslyn OOP such as razor find all reference results
                 var referenceLocationDescriptors = await _callbackService.InvokeAsync<IEnumerable<ReferenceLocationDescriptor>>(
-                    _owner, nameof(ICodeLensContext.FindReferenceLocationsAsync), new object[] { this.Descriptor }, cancellationToken).ConfigureAwait(false);
+                    _owner, nameof(ICodeLensContext.FindReferenceLocationsAsync), new object[] { this.Descriptor, descriptorContext }, cancellationToken).ConfigureAwait(false);
 
                 var details = new CodeLensDetailsDescriptor
                 {
@@ -197,7 +197,7 @@ namespace Microsoft.VisualStudio.CodeAnalysis.CodeLens
                             Tooltip = null,
                             Fields = new List<CodeLensDetailEntryField>()
                             {
-                                new CodeLensDetailEntryField() { Text = Descriptor.FilePath },
+                                new CodeLensDetailEntryField() { Text = referenceLocationDescriptor.FilePath },
                                 new CodeLensDetailEntryField() { Text = referenceLocationDescriptor.LineNumber.ToString() },
                                 new CodeLensDetailEntryField() { Text = referenceLocationDescriptor.ColumnNumber.ToString() },
                                 new CodeLensDetailEntryField() { Text = referenceLocationDescriptor.ReferenceLineText },
